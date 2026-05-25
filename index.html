@@ -293,14 +293,11 @@ var App=(function(){
       .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
       .then(function(data){
         if(!Array.isArray(data))data=[];
-        var prev=JSON.stringify(state.bookings);
-        state.bookings=data.filter(function(b){
+        var parsed=data.filter(function(b){
           return b&&typeof b==='object'&&b.id&&b.date&&b.spaceId&&b.title;
         }).map(function(b){
-          // hours 필드: Sheets에서 JSON 문자열로 저장됨
           if(typeof b.hours==='string'){try{b.hours=JSON.parse(b.hours);}catch(e){b.hours=[];}}
           if(!Array.isArray(b.hours))b.hours=[];
-          // 누락 필드 기본값 처리
           b.applicant=b.applicant||'';
           b.contact=b.contact||'';
           b.people=b.people||'';
@@ -311,25 +308,31 @@ var App=(function(){
           b.discountRate=Number(b.discountRate)||0;
           return b;
         });
+        // 빈 배열이면 기존 데이터 유지 (저장 직후 Sheets 반영 지연 대응)
+        if(parsed.length===0&&state.bookings.length>0&&silent){
+          showSyncStatus('ok','연결됨 · '+state.bookings.length+'건');
+          return;
+        }
+        var prev=JSON.stringify(state.bookings);
+        state.bookings=parsed;
         var total=state.bookings.length;
         showSyncStatus('ok','연결됨 · '+total+'건');
+        // localStorage 백업
+        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state.bookings));}catch(e){}
         if(silent&&JSON.stringify(state.bookings)!==prev){
           render();
           showToast('새 예약이 반영되었습니다');
         }else if(!silent){render();}
-        // localStorage 백업
-        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state.bookings));}catch(e){}
       })
       .catch(function(e){
         showSyncStatus('err','연결 실패');
-        // 로컬 백업에서 복구
-        try{
-          var raw=localStorage.getItem(STORAGE_KEY);
-          if(raw){
-            var data=JSON.parse(raw);
-            if(Array.isArray(data))state.bookings=data;
-          }
-        }catch(e2){}
+        // 로컬 백업에서 복구 (기존 state 유지 우선)
+        if(state.bookings.length===0){
+          try{
+            var raw=localStorage.getItem(STORAGE_KEY);
+            if(raw){var d=JSON.parse(raw);if(Array.isArray(d))state.bookings=d;}
+          }catch(e2){}
+        }
         if(!silent)render();
       });
   }
@@ -352,7 +355,12 @@ var App=(function(){
     showSyncStatus('ing','저장 중...');
     fetch(SCRIPT_URL,{method:'POST',cache:'no-cache',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})
       .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-      .then(function(){showSyncStatus('ok','저장됨');showToast('✓ 저장되었습니다');loadStorage(true);})
+      .then(function(){
+        showSyncStatus('ok','저장됨');
+        showToast('✓ 저장되었습니다');
+        // Sheets 반영 대기 후 갱신
+        setTimeout(function(){loadStorage(true);},3000);
+      })
       .catch(function(e){showSyncStatus('err','저장 실패');alert('Google Sheets 저장 실패: '+e.message);});
     return true;
   }
