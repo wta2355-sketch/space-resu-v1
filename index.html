@@ -349,9 +349,9 @@ var App=(function(){
 
   function saveStorage(booking,action){
     showSyncStatus('ing','저장 중...');
-    var url,cbName='__rsv_save_'+Date.now();
+    var payload;
     if(action==='delete'){
-      url=SCRIPT_URL+'?action=delete&id='+encodeURIComponent(booking)+'&callback='+cbName+'&t='+Date.now();
+      payload={action:'delete',id:booking};
     }else{
       var slim={
         id:booking.id,date:booking.date,spaceId:booking.spaceId,
@@ -359,36 +359,25 @@ var App=(function(){
         applicant:booking.applicant||'',contact:booking.contact||'',
         people:booking.people||'',baseFee:booking.baseFee||0,fee:booking.fee||0
       };
-      url=SCRIPT_URL+'?action='+action+'&data='+encodeURIComponent(JSON.stringify(slim))+'&callback='+cbName+'&t='+Date.now();
+      payload={action:action,booking:slim};
     }
-    // GET 방식 JSONP로 저장 (CORS 우회)
-    var script=document.createElement('script');
-    var done=false;
-    var timer=setTimeout(function(){
-      if(done)return;done=true;
-      delete window[cbName];
-      if(script.parentNode)script.parentNode.removeChild(script);
-      showSyncStatus('err','저장 실패(timeout)');
-      setTimeout(function(){loadStorage(true);},1000);
-    },10000);
-    window[cbName]=function(){
-      if(done)return;done=true;
-      clearTimeout(timer);
-      delete window[cbName];
-      if(script.parentNode)script.parentNode.removeChild(script);
+    fetch(SCRIPT_URL,{
+      method:'POST',
+      mode:'cors',
+      cache:'no-cache',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    })
+    .then(function(r){return r.json();})
+    .then(function(res){
       showSyncStatus('ok','저장됨');
       showToast('✓ 저장되었습니다');
       setTimeout(function(){loadStorage(true);},2000);
-    };
-    script.src=url;
-    script.onerror=function(){
-      if(done)return;done=true;
-      clearTimeout(timer);
-      delete window[cbName];
-      showSyncStatus('err','저장 실패');
+    })
+    .catch(function(e){
+      showSyncStatus('err','저장 실패: '+e.message);
       setTimeout(function(){loadStorage(true);},2000);
-    };
-    document.head.appendChild(script);
+    });
     return true;
   }
 
