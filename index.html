@@ -348,34 +348,47 @@ var App=(function(){
   }
 
   function saveStorage(booking,action){
-    // 필수 5개 필드만 Sheets에 저장
-    var slim=booking&&action!=='delete'?{
-      id:booking.id,
-      date:booking.date,
-      spaceId:booking.spaceId,
-      hours:JSON.stringify(booking.hours),
-      title:booking.title,
-      applicant:booking.applicant||'',
-      contact:booking.contact||'',
-      people:booking.people||'',
-      baseFee:booking.baseFee||0,
-      fee:booking.fee||0
-    }:booking;
-    var payload=action==='delete'?{action:'delete',id:booking}:{action:action,booking:slim};
     showSyncStatus('ing','저장 중...');
-    // POST는 no-cors로 전송 (CORS 우회, 응답 확인 불가)
-    fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',cache:'no-cache',headers:{'Content-Type':'text/plain'},body:JSON.stringify(payload)})
-      .then(function(){
-        showSyncStatus('ok','저장됨');
-        showToast('✓ 저장되었습니다');
-        // Sheets 반영 대기 후 JSONP로 갱신
-        setTimeout(function(){loadStorage(true);},4000);
-      })
-      .catch(function(e){
-        showSyncStatus('err','저장 실패');
-        // no-cors에서도 오류 시 재시도
-        setTimeout(function(){loadStorage(true);},4000);
-      });
+    var url,cbName='__rsv_save_'+Date.now();
+    if(action==='delete'){
+      url=SCRIPT_URL+'?action=delete&id='+encodeURIComponent(booking)+'&callback='+cbName+'&t='+Date.now();
+    }else{
+      var slim={
+        id:booking.id,date:booking.date,spaceId:booking.spaceId,
+        hours:JSON.stringify(booking.hours),title:booking.title,
+        applicant:booking.applicant||'',contact:booking.contact||'',
+        people:booking.people||'',baseFee:booking.baseFee||0,fee:booking.fee||0
+      };
+      url=SCRIPT_URL+'?action='+action+'&data='+encodeURIComponent(JSON.stringify(slim))+'&callback='+cbName+'&t='+Date.now();
+    }
+    // GET 방식 JSONP로 저장 (CORS 우회)
+    var script=document.createElement('script');
+    var done=false;
+    var timer=setTimeout(function(){
+      if(done)return;done=true;
+      delete window[cbName];
+      if(script.parentNode)script.parentNode.removeChild(script);
+      showSyncStatus('err','저장 실패(timeout)');
+      setTimeout(function(){loadStorage(true);},1000);
+    },10000);
+    window[cbName]=function(){
+      if(done)return;done=true;
+      clearTimeout(timer);
+      delete window[cbName];
+      if(script.parentNode)script.parentNode.removeChild(script);
+      showSyncStatus('ok','저장됨');
+      showToast('✓ 저장되었습니다');
+      setTimeout(function(){loadStorage(true);},2000);
+    };
+    script.src=url;
+    script.onerror=function(){
+      if(done)return;done=true;
+      clearTimeout(timer);
+      delete window[cbName];
+      showSyncStatus('err','저장 실패');
+      setTimeout(function(){loadStorage(true);},2000);
+    };
+    document.head.appendChild(script);
     return true;
   }
 
