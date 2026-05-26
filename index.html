@@ -1317,46 +1317,102 @@ var App=(function(){
   function renderStatList(list,filter){
     currentStatFilter=filter;
     currentStatList=list;
-    var filtered=filter==='all'?list:list.filter(function(b){return b.payStatus===(filter==='done'?'done':'pending');});
+    var filtered=filter==='all'?list:list.filter(function(b){
+      return b.payStatus===(filter==='done'?'done':'pending');
+    });
     // 필터 버튼 활성화
-    ['sfAll','sfPending','sfDone'].forEach(function(id){
-      var el=document.getElementById(id);if(el)el.classList.remove('active');
+    ['sfAll','sfPending','sfDone'].forEach(function(fid){
+      var el=document.getElementById(fid);if(el)el.classList.remove('active');
     });
     var activeId=filter==='all'?'sfAll':filter==='pending'?'sfPending':'sfDone';
     var activeEl=document.getElementById(activeId);if(activeEl)activeEl.classList.add('active');
     var wrap=document.getElementById('statListWrap');if(!wrap)return;
-    var h='<table class="stbl"><thead><tr>';
-    h+='<th>날짜</th><th>공간</th><th>예약명</th>';
-    h+='<th style="text-align:right">시간</th>';
-    h+='<th style="text-align:right">인원</th>';
-    h+='<th style="text-align:right">감면율</th>';
-    h+='<th style="text-align:right">사용료</th>';
-    h+='<th style="text-align:center">결제상태</th>';
-    h+='</tr></thead><tbody>';
+
+    // DOM 직접 생성으로 이벤트 바인딩 문제 해결
+    var table=document.createElement('table');
+    table.className='stbl';
+    table.innerHTML='<thead><tr>'
+      +'<th>날짜</th><th>공간</th><th>예약명</th>'
+      +'<th style="text-align:right">시간</th>'
+      +'<th style="text-align:right">인원</th>'
+      +'<th style="text-align:right">감면율</th>'
+      +'<th style="text-align:right">사용료</th>'
+      +'<th style="text-align:center">결제상태</th>'
+      +'</tr></thead>';
+    var tbody=document.createElement('tbody');
+
     if(!filtered.length){
-      h+='<tr><td colspan="8" style="color:#ccc;padding:12px;text-align:center">해당 예약이 없습니다</td></tr>';
+      var emptyTr=document.createElement('tr');
+      emptyTr.innerHTML='<td colspan="8" style="color:#ccc;padding:12px;text-align:center">해당 예약이 없습니다</td>';
+      tbody.appendChild(emptyTr);
     }else{
       for(var i=0;i<filtered.length;i++){
-        var b=filtered[i],s=U.sp(b.spaceId);if(!s)continue;
-        var d3=U.parseD(b.date);if(!d3)continue;
-        var mh=Math.min.apply(null,b.hours),xh=Math.max.apply(null,b.hours);
-        var ts=s.unit==='day'?'1일':mh+'~'+(xh+1)+'시';
-        var isPaid=b.payStatus==='done';
-        var payBtn='<button class="pay-badge '+(isPaid?'pay-done':'pay-pending')+'" onclick="App.togglePayStat(&quot;'+b.id+'&quot;)">'+(isPaid?'✓ 결제완료':'⏳ 결제대기')+'</button>';
-        h+='<tr class="stat-row" onclick="App.openForm(&quot;'+b.id+'&quot;)" style="cursor:pointer" title="클릭하여 수정">';
-        h+='<td class="lnk">'+(d3.getMonth()+1)+'/'+d3.getDate()+'</td>';
-        h+='<td><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+s.color+';margin-right:4px;vertical-align:middle"></span>'+U.he(s.name)+'</td>';
-        h+='<td>'+U.he(b.title)+'</td>';
-        h+='<td class="num">'+ts+'</td>';
-        h+='<td class="num">'+(U.safeInt(b.people,0)?b.people+'명':'—')+'</td>';
-        h+='<td class="num">'+(b.discountRate?b.discountRate+'%':'—')+'</td>';
-        h+='<td class="num">'+U.fmtW(b.fee||0)+'</td>';
-        h+='<td style="text-align:center" onclick="event.stopPropagation()">'+payBtn+'</td>';
-        h+='</tr>';
+        (function(b){
+          var s=U.sp(b.spaceId);if(!s)return;
+          var d3=U.parseD(b.date);if(!d3)return;
+          var mh=Math.min.apply(null,b.hours),xh=Math.max.apply(null,b.hours);
+          var ts=s.unit==='day'?'1일':mh+'~'+(xh+1)+'시';
+          var isPaid=b.payStatus==='done';
+
+          var tr=document.createElement('tr');
+          tr.className='stat-row';
+          tr.style.cursor='pointer';
+          tr.title='클릭하여 수정';
+          tr.addEventListener('click',function(){openForm(b.id);});
+
+          var td1=document.createElement('td');
+          td1.className='lnk';
+          td1.textContent=(d3.getMonth()+1)+'/'+d3.getDate();
+          tr.appendChild(td1);
+
+          var td2=document.createElement('td');
+          td2.innerHTML='<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+s.color+';margin-right:4px;vertical-align:middle"></span>'+U.he(s.name);
+          tr.appendChild(td2);
+
+          var td3=document.createElement('td');
+          td3.textContent=b.title;
+          tr.appendChild(td3);
+
+          var td4=document.createElement('td');
+          td4.className='num';
+          td4.textContent=ts;
+          tr.appendChild(td4);
+
+          var td5=document.createElement('td');
+          td5.className='num';
+          td5.textContent=U.safeInt(b.people,0)?b.people+'명':'—';
+          tr.appendChild(td5);
+
+          var td6=document.createElement('td');
+          td6.className='num';
+          td6.textContent=b.discountRate?b.discountRate+'%':'—';
+          tr.appendChild(td6);
+
+          var td7=document.createElement('td');
+          td7.className='num';
+          td7.textContent=U.fmtW(b.fee||0);
+          tr.appendChild(td7);
+
+          var td8=document.createElement('td');
+          td8.style.textAlign='center';
+          td8.addEventListener('click',function(e){e.stopPropagation();});
+          var payBtn=document.createElement('button');
+          payBtn.className='pay-badge '+(isPaid?'pay-done':'pay-pending');
+          payBtn.textContent=isPaid?'✓ 결제완료':'⏳ 결제대기';
+          payBtn.addEventListener('click',function(e){
+            e.stopPropagation();
+            togglePayStat(b.id);
+          });
+          td8.appendChild(payBtn);
+          tr.appendChild(td8);
+
+          tbody.appendChild(tr);
+        })(filtered[i]);
       }
     }
-    h+='</tbody></table>';
-    wrap.innerHTML=h;
+    table.appendChild(tbody);
+    wrap.innerHTML='';
+    wrap.appendChild(table);
   }
 
   function setStatFilter(filter){
