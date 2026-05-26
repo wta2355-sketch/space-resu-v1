@@ -159,6 +159,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Ne
 .sp-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .sp-chip{font-size:10px;padding:2px 8px;border-radius:10px;background:#e8f4fd;color:#1565c0;font-weight:500}
 
+/* 결제 상태 뱃지 */
+.pay-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;padding:2px 6px;border-radius:8px;cursor:pointer;transition:all .15s;border:none;vertical-align:middle}
+.pay-pending{background:#fff3e0;color:#e65100;border:1px solid #ffcc80}
+.pay-pending:hover{background:#ffe0b2}
+.pay-done{background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7}
+.pay-done:hover{background:#c8e6c9}
+/* 통계 목록 행 */
+.stat-row:hover td{background:#f0f6ff!important}
+.stat-row:hover{background:#f0f6ff}
+/* 통계 필터 버튼 */
+.stat-filter-btn{padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid #e0e0e0;background:#fff;color:#888;transition:all .15s}
+.stat-filter-btn:hover{background:#f5f5f5}
+.stat-filter-btn.active{background:#1F4E79;color:#fff;border-color:#1F4E79}
+/* PIN 키패드 */
+.pin-dot{width:14px;height:14px;border-radius:50%;background:#e0e0e0;transition:background .15s}
+.pin-key{padding:14px 0;border:1px solid #e0e0e0;border-radius:8px;font-size:16px;font-weight:500;cursor:pointer;background:#fff;color:#1a1a1a;transition:all .1s}
+.pin-key:hover{background:#f5f5f5}
+.pin-key:active{background:#e8e8e8;transform:scale(.95)}
 /* 일괄 선택 모드 */
 .bulk-bar{display:none;position:sticky;top:0;z-index:50;background:#1F4E79;color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap}
 .bulk-bar.show{display:flex}
@@ -253,6 +271,7 @@ var App=(function(){
   var DOW=['일','월','화','수','목','금','토'];
   var STORAGE_KEY='rsv_pro_v1';
   var FIREBASE_URL='https://space-reservation-46e22-default-rtdb.asia-southeast1.firebasedatabase.app';
+  var DELETE_PIN='1981'; // 삭제 비밀번호 (변경 시 이 값만 수정)
 
   var bulkMode=false;
   var bulkSelected={};
@@ -305,6 +324,77 @@ var App=(function(){
     return Math.round(base*(1-r/100));
   }
 
+  function confirmPin(onSuccess){
+    document.getElementById('mT').innerHTML='🔒 삭제 비밀번호 확인';
+    document.getElementById('mB').innerHTML=
+      '<div style="text-align:center;padding:10px 0 6px">'
+      +'<div style="font-size:13px;color:#888;margin-bottom:14px">삭제하려면 4자리 PIN을 입력하세요</div>'
+      +'<div id="pinDots" style="display:flex;justify-content:center;gap:10px;margin-bottom:16px">'
+      +'<div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>'
+      +'</div>'
+      +'<div id="pinErr" style="color:#c62828;font-size:11px;min-height:16px;margin-bottom:8px"></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:200px;margin:0 auto">'
+      +'<button class="pin-key" onclick="App.pinKey(1)">1</button>'
+      +'<button class="pin-key" onclick="App.pinKey(2)">2</button>'
+      +'<button class="pin-key" onclick="App.pinKey(3)">3</button>'
+      +'<button class="pin-key" onclick="App.pinKey(4)">4</button>'
+      +'<button class="pin-key" onclick="App.pinKey(5)">5</button>'
+      +'<button class="pin-key" onclick="App.pinKey(6)">6</button>'
+      +'<button class="pin-key" onclick="App.pinKey(7)">7</button>'
+      +'<button class="pin-key" onclick="App.pinKey(8)">8</button>'
+      +'<button class="pin-key" onclick="App.pinKey(9)">9</button>'
+      +'<button class="pin-key pin-del" onclick="App.pinKey(-1)" style="grid-column:1">⌫</button>'
+      +'<button class="pin-key" onclick="App.pinKey(0)">0</button>'
+      +'<div></div>'
+      +'</div></div>';
+    document.getElementById('mA').innerHTML=
+      '<button class="btn" onclick="App.pinCancel()">취소</button>';
+    pinInput='';
+    pinCallback=onSuccess;
+    showModal();
+  }
+
+  var pinInput='';
+  var pinCallback=null;
+
+  function pinKey(n){
+    if(n===-1){
+      pinInput=pinInput.slice(0,-1);
+    } else {
+      if(pinInput.length>=4)return;
+      pinInput+=String(n);
+    }
+    // 점 업데이트
+    var dots=document.querySelectorAll('.pin-dot');
+    dots.forEach(function(d,i){
+      d.style.background=i<pinInput.length?'#1a1a1a':'#e0e0e0';
+    });
+    // 4자리 입력 완료
+    if(pinInput.length===4){
+      if(pinInput===DELETE_PIN){
+        var cb=pinCallback;
+        pinInput='';pinCallback=null;
+        closeModal();
+        setTimeout(cb,100);
+      } else {
+        document.getElementById('pinErr').textContent='PIN이 올바르지 않습니다';
+        var dots2=document.querySelectorAll('.pin-dot');
+        dots2.forEach(function(d){d.style.background='#E24B4A';});
+        setTimeout(function(){
+          pinInput='';
+          var dots3=document.querySelectorAll('.pin-dot');
+          dots3.forEach(function(d){d.style.background='#e0e0e0';});
+          document.getElementById('pinErr').textContent='';
+        },600);
+      }
+    }
+  }
+
+  function pinCancel(){
+    pinInput='';pinCallback=null;
+    closeModal();
+  }
+
   function showSyncStatus(state_,msg){
     var el=document.getElementById('syncStatus');
     if(!el)return;
@@ -338,6 +428,7 @@ var App=(function(){
       b.baseFee=Number(b.baseFee)||0;
       b.fee=Number(b.fee)||0;
       b.discountRate=Number(b.discountRate)||0;
+      b.payStatus=b.payStatus||'pending';
       return b;
     });
   }
@@ -381,7 +472,8 @@ var App=(function(){
         id:booking.id,date:booking.date,spaceId:booking.spaceId,
         hours:booking.hours,title:booking.title,
         applicant:booking.applicant||'',contact:booking.contact||'',
-        people:booking.people||'',baseFee:booking.baseFee||0,fee:booking.fee||0
+        people:booking.people||'',baseFee:booking.baseFee||0,fee:booking.fee||0,
+        payStatus:booking.payStatus||'pending'
       };
       url=FIREBASE_URL+'/bookings/'+booking.id+'.json';
       method='PUT';
@@ -554,7 +646,8 @@ var App=(function(){
             +'<div class="mchip" style="background:'+s.color+';color:'+s.text+'" title="'+U.he(s.name)+'">'+U.he(show[j].title)+'</div>'
             +'</div>';
         }else{
-          h+='<div class="mchip-wrap"><div class="mchip" style="background:'+s.color+';color:'+s.text+'" title="'+U.he(s.name)+'">'+U.he(show[j].title)+'</div></div>';
+          var payDot=show[j].payStatus==='done'?'✓':'⏳';
+          h+='<div class="mchip-wrap"><div class="mchip" style="background:'+s.color+';color:'+s.text+'" title="'+U.he(s.name)+'">'+payDot+' '+U.he(show[j].title)+'</div></div>';
         }
       }
       if(db.length>4)h+='<div class="mmore">+'+(db.length-4)+'개</div>';
@@ -605,6 +698,24 @@ var App=(function(){
       +'<div class="scard"><div class="scard-lbl">👥 총 이용인원</div><div class="scard-val">'+totPpl+'명</div><div class="scard-sub">입력 인원 합계</div></div>'
       +'<div class="scard"><div class="scard-lbl">📊 건당 평균</div><div class="scard-val">'+U.fmtW(avg)+'</div><div class="scard-sub">평균 사용료</div></div>'
       +'</div>';
+    var totPaid=0,totPending=0,feePaid=0,feePending=0;
+    for(var i=0;i<mb.length;i++){
+      if(mb[i].payStatus==='done'){totPaid++;feePaid+=Number(mb[i].fee)||0;}
+      else{totPending++;feePending+=Number(mb[i].fee)||0;}
+    }
+    h+='<div style="background:#fff;border:1px solid #f0f0f0;border-radius:10px;padding:14px;display:flex;gap:12px;flex-wrap:wrap">'
+      +'<div style="font-size:11px;font-weight:600;color:#888;width:100%;margin-bottom:4px">💳 결제 현황</div>'
+      +'<div style="flex:1;min-width:140px;background:#e8f5e9;border-radius:8px;padding:10px 14px">'
+      +'<div style="font-size:10px;color:#2e7d32;font-weight:600;margin-bottom:4px">✓ 결제완료</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#1b5e20">'+totPaid+'건</div>'
+      +'<div style="font-size:11px;color:#2e7d32;margin-top:2px">'+U.fmtW(feePaid)+'</div>'
+      +'</div>'
+      +'<div style="flex:1;min-width:140px;background:#fff3e0;border-radius:8px;padding:10px 14px">'
+      +'<div style="font-size:10px;color:#e65100;font-weight:600;margin-bottom:4px">⏳ 결제대기</div>'
+      +'<div style="font-size:18px;font-weight:700;color:#bf360c">'+totPending+'건</div>'
+      +'<div style="font-size:11px;color:#e65100;margin-top:2px">'+U.fmtW(feePending)+'</div>'
+      +'</div>'
+      +'</div>';
 
     h+='<div class="stat-2col">';
     h+='<div class="stat-block"><div class="stat-block-title">공간별 사용료</div>';
@@ -632,17 +743,19 @@ var App=(function(){
     h+='</tbody></table></div>';
 
     var srt=mb.slice().sort(function(a,b){if(a.date<b.date)return -1;if(a.date>b.date)return 1;return Math.min.apply(null,a.hours)-Math.min.apply(null,b.hours);});
-    h+='<div class="stat-block"><div class="stat-block-title">이번 달 예약 목록</div>';
-    h+='<table class="stbl"><thead><tr><th>날짜</th><th>공간</th><th>예약명</th><th style="text-align:right">시간</th><th style="text-align:right">인원</th><th style="text-align:right">감면율</th><th style="text-align:right">사용료</th></tr></thead><tbody>';
-    if(!srt.length)h+='<tr><td colspan="7" style="color:#ccc;padding:8px">데이터 없음</td></tr>';
-    else for(var i=0;i<srt.length;i++){
-      var b=srt[i],s=U.sp(b.spaceId);if(!s)continue;
-      var d3=U.parseD(b.date);if(!d3)continue;
-      var mh=Math.min.apply(null,b.hours),xh=Math.max.apply(null,b.hours);
-      var ts=s.unit==='day'?'1일':mh+'~'+(xh+1)+'시';
-      h+='<tr><td class="lnk" onclick="App.openDayView(\''+b.date+'\')">'+(d3.getMonth()+1)+'/'+d3.getDate()+'</td><td><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+s.color+';margin-right:4px;vertical-align:middle"></span>'+U.he(s.name)+'</td><td>'+U.he(b.title)+'</td><td class="num">'+ts+'</td><td class="num">'+(U.safeInt(b.people,0)?b.people+'명':'—')+'</td><td class="num">'+(b.discountRate?b.discountRate+'%':'—')+'</td><td class="num">'+U.fmtW(b.fee||0)+'</td></tr>';
-    }
-    h+='</tbody></table></div></div>';
+    h+='<div class="stat-block">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">';
+    h+='<div class="stat-block-title" style="margin-bottom:0">이번 달 예약 목록</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
+    h+='<span style="font-size:11px;color:#aaa">결제상태:</span>';
+    h+='<button class="stat-filter-btn active" id="sfAll" onclick="App.setStatFilter(&quot;all&quot;)">전체</button>';
+    h+='<button class="stat-filter-btn" id="sfPending" onclick="App.setStatFilter(&quot;pending&quot;)">⏳ 결제대기</button>';
+    h+='<button class="stat-filter-btn" id="sfDone" onclick="App.setStatFilter(&quot;done&quot;)">✓ 결제완료</button>';
+    h+='</div></div>';
+    h+='<div id="statListWrap"></div>';
+    h+='</div></div>';
+    // 목록 렌더링은 별도 함수로
+    renderStatList(srt,'all');
 
     document.getElementById('view').innerHTML=h;
   }
@@ -912,7 +1025,9 @@ var App=(function(){
       function makeRecord(id,date){
         var base=calcBaseFee(sid,date,hours,customFee);
         var fee=applyDiscount(base,discRate);
-        return{id:id,date:date,spaceId:sid,hours:hours,title:title,applicant:app,contact:con,people:ppl,memo:memo,customFee:s.custom?customFee:undefined,baseFee:base,fee:fee,discountRate:discRate>0?discRate:undefined,updatedAt:Date.now()};
+        var existingPay='pending';
+        if(editId){for(var _ei=0;_ei<state.bookings.length;_ei++){if(state.bookings[_ei].id===editId){existingPay=state.bookings[_ei].payStatus||'pending';break;}}}
+        return{id:id,date:date,spaceId:sid,hours:hours,title:title,applicant:app,contact:con,people:ppl,memo:memo,customFee:s.custom?customFee:undefined,baseFee:base,fee:fee,discountRate:discRate>0?discRate:undefined,payStatus:existingPay,updatedAt:Date.now()};
       }
       if(editId){
         var idx=-1;
@@ -938,12 +1053,13 @@ var App=(function(){
   }
 
   function deleteBooking(id){
-    if(!confirm('이 예약을 삭제할까요?'))return;
-    var before=state.bookings.length;
-    state.bookings=state.bookings.filter(function(b){return b.id!==id;});
-    if(state.bookings.length===before){alert('삭제할 예약을 찾을 수 없습니다.');return;}
-    closeModal();render();
-    saveStorage(id,'delete');
+    confirmPin(function(){
+      var before=state.bookings.length;
+      state.bookings=state.bookings.filter(function(b){return b.id!==id;});
+      if(state.bookings.length===before){alert('삭제할 예약을 찾을 수 없습니다.');return;}
+      render();
+      saveStorage(id,'delete');
+    });
   }
 
   function openDetail(id){
@@ -959,10 +1075,14 @@ var App=(function(){
     var feeHtml=rate>0
       ?'<span style="text-decoration:line-through;opacity:.55;margin-right:6px;font-weight:400">'+U.fmtW(base)+'</span><span style="color:#bf8014">'+U.fmtW(fee)+' ('+rate+'% 감면)</span>'
       :U.fmtW(fee);
+    var payLbl=b.payStatus==='done'?'✓ 결제완료':'⏳ 결제대기';
+    var payCls=b.payStatus==='done'?'pay-done':'pay-pending';
+    var payHtml='<button class="pay-badge '+payCls+'" onclick="App.togglePayDetail(&quot;'+b.id+'&quot;)">'+payLbl+'</button>'
+      +' <span style="font-size:10px;color:#aaa">(클릭하여 변경)</span>';
     var rows=[
       ['예약명',U.he(b.title)],['신청자',b.applicant?U.he(b.applicant):'—'],
       ['연락처',b.contact?U.he(b.contact):'—'],['인원',U.safeInt(b.people,0)?U.safeInt(b.people,0)+'명':'—'],
-      ['사용료',feeHtml],['메모',b.memo?U.he(b.memo):'—']
+      ['사용료',feeHtml],['결제상태',payHtml],['메모',b.memo?U.he(b.memo):'—']
     ];
     var dh='';for(var i=0;i<rows.length;i++)dh+='<div class="dk">'+rows[i][0]+'</div><div class="dv">'+rows[i][1]+'</div>';
     document.getElementById('mB').innerHTML=
@@ -1080,7 +1200,7 @@ var App=(function(){
       tr.innerHTML='<td>'+(i+1)+'</td><td>'+U.he(date)+'</td><td>'+U.he(spName)+'</td><td>'+U.he(ts)+'</td><td>'+U.he(title)+'</td><td>'+(discRate?discRate+'%':'—')+'</td><td>'+(finalFee?U.fmtW(finalFee):'—')+'</td><td class="'+(isOk?'okm':'errm')+'">'+(isOk?'✓':U.he(errs.join(', ')))+'</td>';
       tbody.appendChild(tr);
       if(isOk){
-        state.upload.validRows.push({id:U.uuid(),date:date,spaceId:sp.id,hours:hours,title:title,applicant:app,contact:contact,people:people,memo:memo,customFee:sp.custom?customFeeIn:undefined,baseFee:base,fee:finalFee,discountRate:discRate>0?discRate:undefined});
+        state.upload.validRows.push({id:U.uuid(),date:date,spaceId:sp.id,hours:hours,title:title,applicant:app,contact:contact,people:people,memo:memo,customFee:sp.custom?customFeeIn:undefined,baseFee:base,fee:finalFee,discountRate:discRate>0?discRate:undefined,payStatus:'pending'});
       }
     }
     document.getElementById('upTbl').style.display='block';
@@ -1173,6 +1293,85 @@ var App=(function(){
     var _cdEl=document.getElementById('auto-countdown');
     if(_cdEl)_cdEl.textContent=30;
     loadStorage(false);
+  }
+
+  function togglePay(id){
+    for(var i=0;i<state.bookings.length;i++){
+      if(state.bookings[i].id===id){
+        state.bookings[i].payStatus=state.bookings[i].payStatus==='done'?'pending':'done';
+        saveStorage(state.bookings[i],'edit');
+        render();
+        return;
+      }
+    }
+  }
+
+  function togglePayDetail(id){
+    togglePay(id);
+    setTimeout(function(){openDetail(id);},100);
+  }
+
+  var currentStatFilter='all';
+  var currentStatList=[];
+
+  function renderStatList(list,filter){
+    currentStatFilter=filter;
+    currentStatList=list;
+    var filtered=filter==='all'?list:list.filter(function(b){return b.payStatus===(filter==='done'?'done':'pending');});
+    // 필터 버튼 활성화
+    ['sfAll','sfPending','sfDone'].forEach(function(id){
+      var el=document.getElementById(id);if(el)el.classList.remove('active');
+    });
+    var activeId=filter==='all'?'sfAll':filter==='pending'?'sfPending':'sfDone';
+    var activeEl=document.getElementById(activeId);if(activeEl)activeEl.classList.add('active');
+    var wrap=document.getElementById('statListWrap');if(!wrap)return;
+    var h='<table class="stbl"><thead><tr>';
+    h+='<th>날짜</th><th>공간</th><th>예약명</th>';
+    h+='<th style="text-align:right">시간</th>';
+    h+='<th style="text-align:right">인원</th>';
+    h+='<th style="text-align:right">감면율</th>';
+    h+='<th style="text-align:right">사용료</th>';
+    h+='<th style="text-align:center">결제상태</th>';
+    h+='</tr></thead><tbody>';
+    if(!filtered.length){
+      h+='<tr><td colspan="8" style="color:#ccc;padding:12px;text-align:center">해당 예약이 없습니다</td></tr>';
+    }else{
+      for(var i=0;i<filtered.length;i++){
+        var b=filtered[i],s=U.sp(b.spaceId);if(!s)continue;
+        var d3=U.parseD(b.date);if(!d3)continue;
+        var mh=Math.min.apply(null,b.hours),xh=Math.max.apply(null,b.hours);
+        var ts=s.unit==='day'?'1일':mh+'~'+(xh+1)+'시';
+        var isPaid=b.payStatus==='done';
+        var payBtn='<button class="pay-badge '+(isPaid?'pay-done':'pay-pending')+'" onclick="App.togglePayStat(&quot;'+b.id+'&quot;)">'+(isPaid?'✓ 결제완료':'⏳ 결제대기')+'</button>';
+        h+='<tr class="stat-row" onclick="App.openForm(&quot;'+b.id+'&quot;)" style="cursor:pointer" title="클릭하여 수정">';
+        h+='<td class="lnk">'+(d3.getMonth()+1)+'/'+d3.getDate()+'</td>';
+        h+='<td><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:'+s.color+';margin-right:4px;vertical-align:middle"></span>'+U.he(s.name)+'</td>';
+        h+='<td>'+U.he(b.title)+'</td>';
+        h+='<td class="num">'+ts+'</td>';
+        h+='<td class="num">'+(U.safeInt(b.people,0)?b.people+'명':'—')+'</td>';
+        h+='<td class="num">'+(b.discountRate?b.discountRate+'%':'—')+'</td>';
+        h+='<td class="num">'+U.fmtW(b.fee||0)+'</td>';
+        h+='<td style="text-align:center" onclick="event.stopPropagation()">'+payBtn+'</td>';
+        h+='</tr>';
+      }
+    }
+    h+='</tbody></table>';
+    wrap.innerHTML=h;
+  }
+
+  function setStatFilter(filter){
+    renderStatList(currentStatList,filter);
+  }
+
+  function togglePayStat(id){
+    togglePay(id);
+    // 통계 뷰 목록만 갱신
+    setTimeout(function(){
+      var prefix=state.statDate.y+'-'+U.p2(state.statDate.m+1)+'-';
+      var mb=state.bookings.filter(function(b){return b.date.indexOf(prefix)===0;});
+      var srt=mb.slice().sort(function(a,b){if(a.date<b.date)return -1;if(a.date>b.date)return 1;return Math.min.apply(null,a.hours)-Math.min.apply(null,b.hours);});
+      renderStatList(srt,currentStatFilter);
+    },200);
   }
 
   function toggleBulkMode(){
@@ -1338,15 +1537,15 @@ var App=(function(){
   function bulkDelete(){
     var ids=Object.keys(bulkSelected);
     if(!ids.length){alert('선택된 예약이 없습니다.');return;}
-    if(!confirm(ids.length+'개의 예약을 삭제할까요?'))return;
-    // 낙관적 UI 업데이트
-    state.bookings=state.bookings.filter(function(b){return!bulkSelected[b.id];});
-    // Firebase에서 순차 삭제
-    ids.forEach(function(id){saveStorage(id,'delete');});
-    bulkSelected={};
-    toggleBulkMode();
-    showToast('✓ '+ids.length+'개 삭제되었습니다');
-    render();
+    confirmPin(function(){
+      var cnt=ids.length;
+      state.bookings=state.bookings.filter(function(b){return!bulkSelected[b.id];});
+      ids.forEach(function(id){saveStorage(id,'delete');});
+      bulkSelected={};
+      toggleBulkMode();
+      showToast('✓ '+cnt+'개 삭제되었습니다');
+      render();
+    });
   }
 
   return{
@@ -1357,6 +1556,12 @@ var App=(function(){
     openUpload:openUpload,doUpload:doUpload,exportCSV:exportCSV,
     closeModal:closeModal,ovBg:ovBg,
     manualSync:manualSync,
+    pinKey:pinKey,
+    togglePay:togglePay,
+    setStatFilter:setStatFilter,
+    togglePayStat:togglePayStat,
+    togglePayDetail:togglePayDetail,
+    pinCancel:pinCancel,
     toggleBulkMode:toggleBulkMode,
     toggleBulkSelect:toggleBulkSelect,
     bulkDelete:bulkDelete,
