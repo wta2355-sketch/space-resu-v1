@@ -202,7 +202,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Ne
         <button class="tab" data-view="stat" onclick="App.setView('stat',this)">통계</button>
       </div>
       <button class="btn btn-p" onclick="App.openForm()">+ 예약 추가</button>
-      <button class="btn" id="bulkModeBtn" onclick="App.toggleBulkMode()" style="display:none">☑ 일괄선택</button>
+      <button class="btn" id="bulkModeBtn" onclick="App.toggleBulkMode()">☑ 일괄선택</button>
       <button class="btn" onclick="App.openUpload()">↑ 일괄업로드</button>
       <button class="btn" onclick="App.exportCSV()">↓ CSV</button>
     </div>
@@ -660,7 +660,7 @@ var App=(function(){
     if(v==='stat'){state.statDate={y:state.current.getFullYear(),m:state.current.getMonth()};}
     // 월간 뷰에서만 일괄선택 버튼 표시
     var bulkBtn=document.getElementById('bulkModeBtn');
-    if(bulkBtn)bulkBtn.style.display=(v==='month')?'':'none';
+    if(bulkBtn)bulkBtn.style.display=(v==='month')?'inline-flex':'none';
     // 월간 뷰 아닐 때 일괄선택 모드 해제
     if(v!=='month'&&bulkMode){bulkMode=false;bulkSelected={};var bar=document.getElementById('bulkBar');if(bar)bar.classList.remove('show');}
     render();
@@ -1123,6 +1123,9 @@ var App=(function(){
 
   function init(){
     loadStorage(false);
+    // 초기 뷰가 day이므로 일괄선택 버튼 숨기기
+    var bulkBtn=document.getElementById('bulkModeBtn');
+    if(bulkBtn)bulkBtn.style.display='none';
     // 30초 자동 새로고침
     var _cd=30;
     var _cdEl=document.getElementById('auto-countdown');
