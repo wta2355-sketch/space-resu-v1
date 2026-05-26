@@ -449,6 +449,7 @@ var App=(function(){
   }
 
   function renderDay(){
+    var _bb=document.getElementById('bulkModeBtn');if(_bb)_bb.style.display='none';
     var ds=U.fmt(state.current);
     var dayBks=state.bookings.filter(function(b){return b.date===ds;}).sort(function(a,b){return Math.min.apply(null,a.hours)-Math.min.apply(null,b.hours);});
     var h='<div class="day-wrap">';
@@ -491,6 +492,7 @@ var App=(function(){
     var arr=[];for(var i=0;i<7;i++){var n=new Date(d);n.setDate(d.getDate()+i);arr.push(n);}return arr;
   }
   function renderWeek(){
+    var _bb=document.getElementById('bulkModeBtn');if(_bb)_bb.style.display='none';
     var dates=getWeekDates(),tds=U.todayStr();
     var weekBks=state.bookings.filter(function(b){for(var i=0;i<dates.length;i++)if(U.fmt(dates[i])===b.date)return true;return false;});
     if(!weekBks.length){document.getElementById('view').innerHTML='<div class="empty-state"><span class="empty-icon">📭</span>이번 주 예약이 없습니다</div>';return;}
@@ -523,6 +525,9 @@ var App=(function(){
   }
 
   function renderMonth(){
+    // 월간 뷰 진입 시 일괄선택 버튼 표시
+    var _bb=document.getElementById('bulkModeBtn');
+    if(_bb)_bb.style.display='inline-flex';
     var y=state.current.getFullYear(),m=state.current.getMonth();
     var first=new Date(y,m,1),last=new Date(y,m+1,0),sd=first.getDay(),tds=U.todayStr();
     var h='<div class="mgrid">';
@@ -557,6 +562,7 @@ var App=(function(){
   }
 
   function renderStat(){
+    var _bb=document.getElementById('bulkModeBtn');if(_bb)_bb.style.display='none';
     var y=state.statDate.y,m=state.statDate.m;
     var prefix=y+'-'+U.p2(m+1)+'-';
     var mb=state.bookings.filter(function(b){return b.date.indexOf(prefix)===0;});
