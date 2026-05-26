@@ -158,6 +158,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Ne
 .up-info b{color:#333}
 .sp-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .sp-chip{font-size:10px;padding:2px 8px;border-radius:10px;background:#e8f4fd;color:#1565c0;font-weight:500}
+
+/* 일괄 선택 모드 */
+.bulk-bar{display:none;position:sticky;top:0;z-index:50;background:#1F4E79;color:#fff;padding:10px 16px;border-radius:8px;margin-bottom:10px;align-items:center;gap:10px;flex-wrap:wrap}
+.bulk-bar.show{display:flex}
+.bulk-bar-info{font-size:13px;font-weight:600;flex:1}
+.bulk-btn{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.bulk-btn-del{background:#E24B4A;color:#fff}
+.bulk-btn-del:hover{background:#c62828}
+.bulk-btn-cancel{background:rgba(255,255,255,.2);color:#fff}
+.bulk-btn-cancel:hover{background:rgba(255,255,255,.3)}
+.mchip-wrap{position:relative;display:block;margin-bottom:2px}
+.mchip-wrap input[type=checkbox]{position:absolute;left:3px;top:50%;transform:translateY(-50%);width:13px;height:13px;cursor:pointer;z-index:2;accent-color:#1F4E79}
+.mchip-wrap.has-cb .mchip{padding-left:20px}
+.mchip-wrap.checked .mchip{outline:2px solid #1F4E79;outline-offset:1px}
+.bulk-mode .mday{cursor:default}
+.bulk-mode .mday:hover{border-color:#f0f0f0}
 </style>
 </head>
 <body>
@@ -186,12 +202,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Ne
         <button class="tab" data-view="stat" onclick="App.setView('stat',this)">통계</button>
       </div>
       <button class="btn btn-p" onclick="App.openForm()">+ 예약 추가</button>
+      <button class="btn" id="bulkModeBtn" onclick="App.toggleBulkMode()" style="display:none">☑ 일괄선택</button>
       <button class="btn" onclick="App.openUpload()">↑ 일괄업로드</button>
       <button class="btn" onclick="App.exportCSV()">↓ CSV</button>
     </div>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+  <div class="bulk-bar" id="bulkBar">
+    <div class="bulk-bar-info" id="bulkInfo">0개 선택됨</div>
+    <button class="bulk-btn bulk-btn-del" onclick="App.bulkDelete()">🗑 선택 삭제</button>
+    <button class="bulk-btn bulk-btn-cancel" onclick="App.toggleBulkMode()">✕ 취소</button>
+  </div>
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
   <div class="legend" id="legend" style="margin-bottom:0;flex:1"></div>
   <div class="sync-bar">
     <div class="auto-badge">&#128336; <span id="auto-countdown">30</span>초 후 자동 갱신</div>
@@ -229,6 +251,8 @@ var App=(function(){
   var STORAGE_KEY='rsv_pro_v1';
   var FIREBASE_URL='https://space-reservation-46e22-default-rtdb.asia-southeast1.firebasedatabase.app';
 
+  var bulkMode=false;
+  var bulkSelected={};
   var state={
     bookings:[],
     current:new Date(),
@@ -514,7 +538,16 @@ var App=(function(){
       var show=db.slice(0,4);
       for(var j=0;j<show.length;j++){
         var s=U.sp(show[j].spaceId);if(!s)continue;
-        h+='<div class="mchip" style="background:'+s.color+';color:'+s.text+'" title="'+U.he(s.name)+'">'+U.he(show[j].title)+'</div>';
+        var bid=show[j].id;
+        var isChk=bulkSelected[bid]?'checked':'';
+        if(bulkMode){
+          h+='<div class="mchip-wrap has-cb'+(isChk?' checked':'')+'" onclick="event.stopPropagation();App.toggleBulkSelect(&quot;'+bid+'&quot;)">'
+            +'<input type="checkbox" '+(isChk?'checked':'')+' onclick="event.stopPropagation();App.toggleBulkSelect(&quot;'+bid+'&quot;)">'
+            +'<div class="mchip" style="background:'+s.color+';color:'+s.text+'" title="'+U.he(s.name)+'">'+U.he(show[j].title)+'</div>'
+            +'</div>';
+        }else{
+          h+='<div class="mchip-wrap"><div class="mchip" style="background:'+s.color+';color:'+s.text+'" title="'+U.he(s.name)+'">'+U.he(show[j].title)+'</div></div>';
+        }
       }
       if(db.length>4)h+='<div class="mmore">+'+(db.length-4)+'개</div>';
       h+='</div>';
@@ -625,6 +658,11 @@ var App=(function(){
     for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('on');
     if(el)el.classList.add('on');
     if(v==='stat'){state.statDate={y:state.current.getFullYear(),m:state.current.getMonth()};}
+    // 월간 뷰에서만 일괄선택 버튼 표시
+    var bulkBtn=document.getElementById('bulkModeBtn');
+    if(bulkBtn)bulkBtn.style.display=(v==='month')?'':'none';
+    // 월간 뷰 아닐 때 일괄선택 모드 해제
+    if(v!=='month'&&bulkMode){bulkMode=false;bulkSelected={};var bar=document.getElementById('bulkBar');if(bar)bar.classList.remove('show');}
     render();
   }
   function openDayView(ds){
@@ -1107,6 +1145,50 @@ var App=(function(){
     loadStorage(false);
   }
 
+  function toggleBulkMode(){
+    bulkMode=!bulkMode;
+    bulkSelected={};
+    var bar=document.getElementById('bulkBar');
+    var btn=document.getElementById('bulkModeBtn');
+    var app=document.querySelector('.app');
+    if(bulkMode){
+      if(bar)bar.classList.add('show');
+      if(btn){btn.textContent='✕ 선택모드 끄기';btn.style.background='#fdecea';btn.style.color='#c62828';}
+      if(app)app.classList.add('bulk-mode');
+    }else{
+      if(bar)bar.classList.remove('show');
+      if(btn){btn.textContent='☑ 일괄선택';btn.style.background='';btn.style.color='';}
+      if(app)app.classList.remove('bulk-mode');
+    }
+    // 월간 뷰에서만 활성화
+    if(state.view==='month')render();
+  }
+
+  function toggleBulkSelect(id){
+    if(!bulkMode)return;
+    if(bulkSelected[id])delete bulkSelected[id];
+    else bulkSelected[id]=true;
+    var cnt=Object.keys(bulkSelected).length;
+    var info=document.getElementById('bulkInfo');
+    if(info)info.textContent=cnt+'개 선택됨';
+    // 체크박스 UI만 업데이트
+    render();
+  }
+
+  function bulkDelete(){
+    var ids=Object.keys(bulkSelected);
+    if(!ids.length){alert('선택된 예약이 없습니다.');return;}
+    if(!confirm(ids.length+'개의 예약을 삭제할까요?'))return;
+    // 낙관적 UI 업데이트
+    state.bookings=state.bookings.filter(function(b){return!bulkSelected[b.id];});
+    // Firebase에서 순차 삭제
+    ids.forEach(function(id){saveStorage(id,'delete');});
+    bulkSelected={};
+    toggleBulkMode();
+    showToast('✓ '+ids.length+'개 삭제되었습니다');
+    render();
+  }
+
   return{
     init:init,nav:nav,goToday:goToday,setView:setView,openDayView:openDayView,
     openForm:openForm,saveBooking:saveBooking,deleteBooking:deleteBooking,openDetail:openDetail,
@@ -1114,7 +1196,10 @@ var App=(function(){
     dpNav:dpNav,toggleDate:toggleDate,removeDate:removeDate,toggleHour:toggleHour,
     openUpload:openUpload,doUpload:doUpload,exportCSV:exportCSV,
     closeModal:closeModal,ovBg:ovBg,
-    manualSync:manualSync
+    manualSync:manualSync,
+    toggleBulkMode:toggleBulkMode,
+    toggleBulkSelect:toggleBulkSelect,
+    bulkDelete:bulkDelete
   };
 })();
 App.init();
