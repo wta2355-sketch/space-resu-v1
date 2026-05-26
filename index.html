@@ -754,10 +754,10 @@ var App=(function(){
     h+='</div></div>';
     h+='<div id="statListWrap"></div>';
     h+='</div></div>';
-    // 목록 렌더링은 별도 함수로
-    renderStatList(srt,'all');
 
     document.getElementById('view').innerHTML=h;
+    // innerHTML 설정 후에 목록 렌더링 (DOM이 준비된 후 호출)
+    renderStatList(srt,'all');
   }
 
   function nav(d){
