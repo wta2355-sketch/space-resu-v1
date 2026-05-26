@@ -1094,14 +1094,32 @@ var App=(function(){
   function doUpload(){
     if(!state.upload.validRows.length){alert('업로드할 데이터가 없습니다');return;}
     var added=0,skipped=0;
+    var toAdd=[];
     for(var i=0;i<state.upload.validRows.length;i++){
       var ur=state.upload.validRows[i];
       var confs=findConflicts(ur.date,ur.spaceId,ur.hours,null);
-      if(confs.length)skipped++;else{state.bookings.push(ur);added++;}
+      if(confs.length){skipped++;}else{state.bookings.push(ur);toAdd.push(ur);added++;}
     }
     closeModal();render();
-    for(var _ui=0;_ui<state.upload.validRows.length;_ui++)saveStorage(state.upload.validRows[_ui],'add');
-    alert('업로드 완료!\n추가: '+added+'건'+(skipped?'\n중복 건너뜀: '+skipped+'건':''));
+    // 추가된 항목만 Firebase에 저장
+    var saveCount=0;
+    function saveNext(){
+      if(saveCount>=toAdd.length){
+        // 모두 저장 완료 후 Firebase에서 최신 데이터 불러오기
+        setTimeout(function(){loadStorage(true);},1000);
+        alert('업로드 완료!\n추가: '+added+'건'+(skipped?'\n중복 건너뜀: '+skipped+'건':''));
+        return;
+      }
+      saveStorage(toAdd[saveCount],'add');
+      saveCount++;
+      setTimeout(saveNext,300);
+    }
+    if(toAdd.length>0){
+      showToast('Firebase에 저장 중... ('+toAdd.length+'건)');
+      saveNext();
+    }else{
+      alert('업로드 완료!\n추가: '+added+'건'+(skipped?'\n중복 건너뜀: '+skipped+'건':''));
+    }
   }
 
   function exportCSV(){
