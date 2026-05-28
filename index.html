@@ -476,7 +476,11 @@ var App=(function(){
         id:booking.id,date:booking.date,spaceId:booking.spaceId,
         hours:booking.hours,title:booking.title,
         applicant:booking.applicant||'',contact:booking.contact||'',
-        people:booking.people||'',baseFee:booking.baseFee||0,fee:booking.fee||0,
+        people:booking.people||'',
+        baseFee:booking.baseFee||0,fee:booking.fee||0,
+        discountRate:booking.discountRate||0,
+        customFee:booking.customFee||0,
+        memo:booking.memo||'',
         payStatus:booking.payStatus||'pending',
         payMethod:booking.payMethod||''
       };
