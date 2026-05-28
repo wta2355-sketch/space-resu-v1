@@ -431,6 +431,7 @@ var App=(function(){
       b.baseFee=Number(b.baseFee)||0;
       b.fee=Number(b.fee)||0;
       b.discountRate=Number(b.discountRate)||0;
+      b.discountRate=parseFloat(b.discountRate)||0;
       b.payStatus=b.payStatus||'pending';
       b.payMethod=b.payMethod||'';
       return b;
@@ -478,7 +479,7 @@ var App=(function(){
         applicant:booking.applicant||'',contact:booking.contact||'',
         people:booking.people||'',
         baseFee:booking.baseFee||0,fee:booking.fee||0,
-        discountRate:booking.discountRate||0,
+        discountRate:parseFloat(booking.discountRate)||0,
         customFee:booking.customFee||0,
         memo:booking.memo||'',
         payStatus:booking.payStatus||'pending',
@@ -495,11 +496,11 @@ var App=(function(){
       .then(function(){
         showSyncStatus('ok','저장됨');
         showToast('✓ 저장되었습니다');
-        setTimeout(function(){loadStorage(true);},1000);
+        setTimeout(function(){loadStorage(true);},2000);
       })
       .catch(function(e){
         showSyncStatus('err','저장 실패: '+e.message);
-        setTimeout(function(){loadStorage(true);},1000);
+        setTimeout(function(){loadStorage(true);},2000);
       });
     return true;
   }
@@ -967,7 +968,7 @@ var App=(function(){
       +'</div>'
       +'<div class="disc-row">'
       +'<label>🏷 감면율</label>'
-      +'<input type="number" id="fDisc" value="'+(b&&b.discountRate?b.discountRate:'')+'" placeholder="0" min="0" max="100" step="0.1" oninput="App.updateFee()" onchange="App.updateFee()">'
+      +'<input type="number" id="fDisc" value="'+(b?parseFloat(b.discountRate)||0:'')+'" placeholder="0" min="0" max="100" step="0.1" oninput="App.updateFee()" onchange="App.updateFee()">'
       +'<span class="pct">%</span>'
       +'<span style="flex:1;text-align:right;font-size:10px;color:#bf8014">0~100 사이</span>'
       +'</div>'
@@ -1073,7 +1074,7 @@ var App=(function(){
         if(editId){for(var _em=0;_em<state.bookings.length;_em++){if(state.bookings[_em].id===editId){existingMethod=state.bookings[_em].payMethod||'';break;}}}
         var newPayStatus=document.getElementById('fPayStatus')?document.getElementById('fPayStatus').value:existingPay;
         var newPayMethod=document.getElementById('fPayMethod')?document.getElementById('fPayMethod').value:existingMethod;
-        return{id:id,date:date,spaceId:sid,hours:hours,title:title,applicant:app,contact:con,people:ppl,memo:memo,customFee:s.custom?customFee:undefined,baseFee:base,fee:fee,discountRate:discRate>0?discRate:undefined,payStatus:newPayStatus||existingPay,payMethod:newPayMethod||existingMethod,updatedAt:Date.now()};
+        return{id:id,date:date,spaceId:sid,hours:hours,title:title,applicant:app,contact:con,people:ppl,memo:memo,customFee:s.custom?customFee:undefined,baseFee:base,fee:fee,discountRate:parseFloat(discRate)||0,payStatus:newPayStatus||existingPay,payMethod:newPayMethod||existingMethod,updatedAt:Date.now()};
       }
       if(editId){
         var idx=-1;
