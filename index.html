@@ -719,9 +719,13 @@ var App=(function(){
       +'<div class="scard"><div class="scard-lbl">📊 건당 평균</div><div class="scard-val">'+U.fmtW(avg)+'</div><div class="scard-sub">평균 사용료</div></div>'
       +'</div>';
     var totPaid=0,totPending=0,feePaid=0,feePending=0;
+    var methodStat={card:{cnt:0,fee:0},transfer:{cnt:0,fee:0},naver:{cnt:0,fee:0},none:{cnt:0,fee:0}};
     for(var i=0;i<mb.length;i++){
       if(mb[i].payStatus==='done'){totPaid++;feePaid+=Number(mb[i].fee)||0;}
       else{totPending++;feePending+=Number(mb[i].fee)||0;}
+      var mtd=mb[i].payMethod||'none';
+      if(!methodStat[mtd])methodStat[mtd]={cnt:0,fee:0};
+      methodStat[mtd].cnt++;methodStat[mtd].fee+=Number(mb[i].fee)||0;
     }
     h+='<div style="background:#fff;border:1px solid #f0f0f0;border-radius:10px;padding:14px;display:flex;gap:12px;flex-wrap:wrap">'
       +'<div style="font-size:11px;font-weight:600;color:#888;width:100%;margin-bottom:4px">💳 결제 현황</div>'
@@ -735,6 +739,25 @@ var App=(function(){
       +'<div style="font-size:18px;font-weight:700;color:#bf360c">'+totPending+'건</div>'
       +'<div style="font-size:11px;color:#e65100;margin-top:2px">'+U.fmtW(feePending)+'</div>'
       +'</div>'
+      +'</div>';
+    h+='<div style="background:#fff;border:1px solid #f0f0f0;border-radius:10px;padding:14px;display:flex;gap:10px;flex-wrap:wrap">'
+      +'<div style="font-size:11px;font-weight:600;color:#888;width:100%;margin-bottom:4px">📊 결제 수단별 집계</div>'
+      +'<div style="flex:1;min-width:120px;background:#f3f6fb;border-radius:8px;padding:9px 12px">'
+      +'<div style="font-size:10px;color:#37474F;font-weight:600;margin-bottom:3px">💳 카드</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a1a1a">'+methodStat.card.cnt+'건</div>'
+      +'<div style="font-size:10px;color:#888">'+U.fmtW(methodStat.card.fee)+'</div></div>'
+      +'<div style="flex:1;min-width:120px;background:#f3f6fb;border-radius:8px;padding:9px 12px">'
+      +'<div style="font-size:10px;color:#37474F;font-weight:600;margin-bottom:3px">🏦 계좌이체</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a1a1a">'+methodStat.transfer.cnt+'건</div>'
+      +'<div style="font-size:10px;color:#888">'+U.fmtW(methodStat.transfer.fee)+'</div></div>'
+      +'<div style="flex:1;min-width:120px;background:#f3f6fb;border-radius:8px;padding:9px 12px">'
+      +'<div style="font-size:10px;color:#37474F;font-weight:600;margin-bottom:3px">🟢 네이버페이</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a1a1a">'+methodStat.naver.cnt+'건</div>'
+      +'<div style="font-size:10px;color:#888">'+U.fmtW(methodStat.naver.fee)+'</div></div>'
+      +'<div style="flex:1;min-width:120px;background:#f3f6fb;border-radius:8px;padding:9px 12px">'
+      +'<div style="font-size:10px;color:#37474F;font-weight:600;margin-bottom:3px">미지정</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#1a1a1a">'+methodStat.none.cnt+'건</div>'
+      +'<div style="font-size:10px;color:#888">'+U.fmtW(methodStat.none.fee)+'</div></div>'
       +'</div>';
 
     h+='<div class="stat-2col">';
@@ -768,15 +791,15 @@ var App=(function(){
     h+='<div class="stat-block-title" style="margin-bottom:0">이번 달 예약 목록</div>';
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
     h+='<select id="sfPayStatus" onchange="App.applyStatFilters()" style="font-size:11px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer">';
-    h+='<option value="all">💳 결제상태: 전체</option>';
-    h+='<option value="pending">⏳ 결제대기</option>';
-    h+='<option value="done">✓ 결제완료</option>';
+    h+='<option value="all"'+(statFilterState.pay==='all'?' selected':'')+'>💳 결제상태: 전체</option>';
+    h+='<option value="pending"'+(statFilterState.pay==='pending'?' selected':'')+'>⏳ 결제대기</option>';
+    h+='<option value="done"'+(statFilterState.pay==='done'?' selected':'')+'>✓ 결제완료</option>';
     h+='</select>';
     h+='<select id="sfSpace" onchange="App.applyStatFilters()" style="font-size:11px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:8px;background:#fff;cursor:pointer">';
-    h+='<option value="all">🏢 공간: 전체</option>';
-    for(var _si=0;_si<SPACES.length;_si++){h+='<option value="'+SPACES[_si].id+'">'+U.he(SPACES[_si].name)+'</option>';}
+    h+='<option value="all"'+(statFilterState.space==='all'?' selected':'')+'>🏢 공간: 전체</option>';
+    for(var _si=0;_si<SPACES.length;_si++){h+='<option value="'+SPACES[_si].id+'"'+(statFilterState.space===SPACES[_si].id?' selected':'')+'>'+U.he(SPACES[_si].name)+'</option>';}
     h+='</select>';
-    h+='<input type="text" id="sfTitle" oninput="App.applyStatFilters()" placeholder="🔍 예약명 검색" style="font-size:11px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:8px;width:120px">';
+    h+='<input type="text" id="sfTitle" oninput="App.applyStatFilters()" placeholder="🔍 예약명 검색" value="'+U.he(statFilterState.title)+'" style="font-size:11px;padding:4px 8px;border:1px solid #e0e0e0;border-radius:8px;width:120px">';
     h+='<button class="stat-filter-btn" onclick="App.resetStatFilters()" style="font-size:10px">초기화</button>';
     h+='</div></div>';
     h+='<div id="statListWrap"></div>';
@@ -784,7 +807,12 @@ var App=(function(){
 
     document.getElementById('view').innerHTML=h;
     // innerHTML 설정 후에 목록 렌더링 (DOM이 준비된 후 호출)
-    renderStatList(srt,'all');
+    currentStatList=srt;
+    if(statFilterState.pay!=='all'||statFilterState.space!=='all'||statFilterState.title){
+      applyStatFilters();
+    }else{
+      renderStatList(srt,'all');
+    }
   }
 
   function nav(d){
@@ -1126,6 +1154,7 @@ var App=(function(){
     var payCls=b.payStatus==='done'?'pay-done':'pay-pending';
     var payHtml='<button class="pay-badge '+payCls+'" onclick="App.togglePayDetail(&quot;'+b.id+'&quot;)">'+payLbl+'</button>'
       +' <span style="font-size:10px;color:#aaa">(클릭하여 변경)</span>';
+    var methodMap={'card':'💳 카드','transfer':'🏦 계좌이체','naver':'🟢 네이버페이','':'—'};
     var rows=[
       ['예약명',U.he(b.title)],['신청자',b.applicant?U.he(b.applicant):'—'],
       ['연락처',b.contact?U.he(b.contact):'—'],['인원',U.safeInt(b.people,0)?U.safeInt(b.people,0)+'명':'—'],
@@ -1139,10 +1168,76 @@ var App=(function(){
       +'<div class="dgrid">'+dh+'</div></div>';
     document.getElementById('mA').innerHTML=
       '<button class="btn btn-d" onclick="App.deleteBooking(\''+id+'\')">🗑 삭제</button>'
+      +'<button class="btn" onclick="App.printQuote(\''+id+'\')">🧾 견적서</button>'
       +'<div style="flex:1"></div>'
       +'<button class="btn" onclick="App.closeModal()">닫기</button>'
       +'<button class="btn btn-p" onclick="App.openForm(\''+id+'\')">✏️ 수정</button>';
     showModal();
+  }
+
+  function printQuote(id){
+    var b=findById(id);if(!b){alert('예약을 찾을 수 없습니다');return;}
+    var s=U.sp(b.spaceId);if(!s){alert('알 수 없는 공간');return;}
+    var d=U.parseD(b.date);if(!d){alert('잘못된 날짜');return;}
+    var mh=Math.min.apply(null,b.hours),xh=Math.max.apply(null,b.hours);
+    var ts=s.unit==='day'?'1일 전체':mh+':00 ~ '+(xh+1)+':00 ('+b.hours.length+'시간)';
+    var base=Number(b.baseFee)||Number(b.fee)||0;
+    var fee=Number(b.fee)||0;
+    var rate=Number(b.discountRate)||0;
+    var discAmt=base-fee;
+    var today=new Date();
+    var todayStr=today.getFullYear()+'.'+U.p2(today.getMonth()+1)+'.'+U.p2(today.getDate());
+    var quoteNo='Q'+b.date.replace(/-/g,'')+'-'+b.id.slice(-4).toUpperCase();
+
+    var w=window.open('','_blank');
+    if(!w){alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');return;}
+    var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>견적서 - '+U.he(b.title)+'</title>'
+      +'<style>'
+      +'*{box-sizing:border-box;margin:0;padding:0}'
+      +'body{font-family:-apple-system,"Malgun Gothic",sans-serif;color:#1a1a1a;padding:40px;max-width:720px;margin:0 auto}'
+      +'.q-header{text-align:center;margin-bottom:30px;border-bottom:3px solid #1a1a1a;padding-bottom:16px}'
+      +'.q-title{font-size:26px;font-weight:700;letter-spacing:4px}'
+      +'.q-sub{font-size:12px;color:#888;margin-top:6px}'
+      +'.q-meta{display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:24px}'
+      +'.q-section{margin-bottom:20px}'
+      +'.q-section-title{font-size:13px;font-weight:700;color:#378ADD;margin-bottom:8px;border-left:3px solid #378ADD;padding-left:8px}'
+      +'table{width:100%;border-collapse:collapse;font-size:13px}'
+      +'th{background:#f5f5f5;padding:9px 12px;text-align:left;font-weight:600;color:#666;border-bottom:2px solid #ddd}'
+      +'td{padding:9px 12px;border-bottom:1px solid #eee}'
+      +'.q-total-row td{font-weight:700;font-size:15px;background:#f0f7ff;border-top:2px solid #378ADD}'
+      +'.q-discount{color:#c62828}'
+      +'.q-footer{margin-top:40px;text-align:center;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:16px}'
+      +'.q-print-btn{display:block;margin:24px auto;padding:10px 24px;background:#378ADD;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer}'
+      +'@media print{.q-print-btn{display:none}}'
+      +'</style></head><body>'
+      +'<div class="q-header"><div class="q-title">견 적 서</div><div class="q-sub">QUOTATION</div></div>'
+      +'<div class="q-meta"><span>견적번호: '+quoteNo+'</span><span>발행일: '+todayStr+'</span></div>'
+      +'<div class="q-section"><div class="q-section-title">대관 정보</div>'
+      +'<table>'
+      +'<tr><th style="width:120px">공간</th><td>'+U.he(s.name)+(s.custom?' (협의요금)':'')+'</td></tr>'
+      +'<tr><th>이용일자</th><td>'+U.he(U.fmtKo(d))+'</td></tr>'
+      +'<tr><th>이용시간</th><td>'+U.he(ts)+'</td></tr>'
+      +'<tr><th>예약명</th><td>'+U.he(b.title)+'</td></tr>'
+      +'<tr><th>이용인원</th><td>'+(U.safeInt(b.people,0)?b.people+'명':'—')+'</td></tr>'
+      +'</table></div>'
+      +'<div class="q-section"><div class="q-section-title">신청자 정보</div>'
+      +'<table>'
+      +'<tr><th style="width:120px">신청자</th><td>'+(b.applicant?U.he(b.applicant):'—')+'</td></tr>'
+      +'<tr><th>연락처</th><td>'+(b.contact?U.he(b.contact):'—')+'</td></tr>'
+      +'</table></div>'
+      +'<div class="q-section"><div class="q-section-title">견적 금액</div>'
+      +'<table>'
+      +'<tr><th>항목</th><th style="text-align:right">금액</th></tr>'
+      +'<tr><td>기본 사용료</td><td style="text-align:right">'+U.fmtW(base)+'</td></tr>'
+      +(rate>0?'<tr><td class="q-discount">감면 ('+rate+'%)</td><td style="text-align:right" class="q-discount">-'+U.fmtW(discAmt)+'</td></tr>':'')
+      +'<tr class="q-total-row"><td>최종 견적 금액</td><td style="text-align:right">'+U.fmtW(fee)+'</td></tr>'
+      +'</table></div>'
+      +(b.memo?'<div class="q-section"><div class="q-section-title">비고</div><table><tr><td>'+U.he(b.memo)+'</td></tr></table></div>':'')
+      +'<div class="q-footer">본 견적서는 사전 안내용이며, 실제 결제 금액은 현장 상황에 따라 변동될 수 있습니다.</div>'
+      +'<button class="q-print-btn" onclick="window.print()">🖨 인쇄 / PDF 저장</button>'
+      +'</body></html>';
+    w.document.write(html);
+    w.document.close();
   }
 
   function openUpload(){
@@ -1360,6 +1455,7 @@ var App=(function(){
 
   var currentStatFilter='all';
   var currentStatList=[];
+  var statFilterState={pay:'all',space:'all',title:''};
 
   function renderStatList(list,filter){
     if(filter!=='__filtered__'){
@@ -1476,42 +1572,52 @@ var App=(function(){
   function renderStatYear(h,y){
     var months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
     var yearBks=state.bookings.filter(function(b){return b.date.indexOf(y+'-')===0;});
-    var totFee=0,totCnt=0,totPaid=0,feePaid=0,totPending=0,feePending=0;
+    var totFee=0,totCnt=0,totPaid=0,feePaid=0,totPending=0,feePending=0,totPpl=0,totHr=0;
     for(var i=0;i<yearBks.length;i++){
-      totFee+=Number(yearBks[i].fee)||0;totCnt++;
-      if(yearBks[i].payStatus==='done'){totPaid++;feePaid+=Number(yearBks[i].fee)||0;}
-      else{totPending++;feePending+=Number(yearBks[i].fee)||0;}
+      var yb=yearBks[i],ys=U.sp(yb.spaceId);
+      totFee+=Number(yb.fee)||0;totCnt++;
+      totPpl+=U.safeInt(yb.people,0);
+      if(ys&&ys.unit==='hour')totHr+=yb.hours.length;
+      if(yb.payStatus==='done'){totPaid++;feePaid+=Number(yb.fee)||0;}
+      else{totPending++;feePending+=Number(yb.fee)||0;}
     }
     h+='<div class="stat-cards">';
     h+='<div class="scard"><div class="scard-lbl">💰 연간 총 사용료</div><div class="scard-val">'+U.fmtW(totFee)+'</div><div class="scard-sub">'+y+'년 전체</div></div>';
     h+='<div class="scard"><div class="scard-lbl">📋 연간 예약 건수</div><div class="scard-val">'+totCnt+'건</div><div class="scard-sub">'+y+'년 전체</div></div>';
+    h+='<div class="scard"><div class="scard-lbl">👥 연간 총 이용인원</div><div class="scard-val">'+totPpl+'명</div><div class="scard-sub">입력 인원 합계</div></div>';
+    h+='<div class="scard"><div class="scard-lbl">⏱ 연간 총 이용시간</div><div class="scard-val">'+totHr+'h</div><div class="scard-sub">전시관 제외</div></div>';
     h+='<div class="scard"><div class="scard-lbl">✓ 결제완료</div><div class="scard-val">'+U.fmtW(feePaid)+'</div><div class="scard-sub">'+totPaid+'건</div></div>';
     h+='<div class="scard"><div class="scard-lbl">⏳ 결제대기</div><div class="scard-val">'+U.fmtW(feePending)+'</div><div class="scard-sub">'+totPending+'건</div></div>';
     h+='</div>';
     // 월별 집계 테이블
     h+='<div class="stat-block"><div class="stat-block-title">월별 집계</div>';
-    h+='<table class="stbl"><thead><tr><th>월</th><th style="text-align:right">건수</th><th style="text-align:right">사용료</th><th style="text-align:right">결제완료</th><th style="text-align:right">결제대기</th></tr></thead><tbody>';
+    h+='<table class="stbl"><thead><tr><th>월</th><th style="text-align:right">건수</th><th style="text-align:right">인원</th><th style="text-align:right">시간</th><th style="text-align:right">사용료</th><th style="text-align:right">결제완료</th><th style="text-align:right">결제대기</th></tr></thead><tbody>';
     var hasData=false;
     for(var mi=0;mi<12;mi++){
       var prefix=y+'-'+U.p2(mi+1)+'-';
       var mBks=yearBks.filter(function(b){return b.date.indexOf(prefix)===0;});
       if(!mBks.length)continue;
       hasData=true;
-      var mFee=0,mPaid=0,mPending=0;
+      var mFee=0,mPaid=0,mPending=0,mPpl=0,mHr=0;
       for(var i=0;i<mBks.length;i++){
-        mFee+=Number(mBks[i].fee)||0;
-        if(mBks[i].payStatus==='done')mPaid+=Number(mBks[i].fee)||0;
-        else mPending+=Number(mBks[i].fee)||0;
+        var mb2=mBks[i],ms2=U.sp(mb2.spaceId);
+        mFee+=Number(mb2.fee)||0;
+        mPpl+=U.safeInt(mb2.people,0);
+        if(ms2&&ms2.unit==='hour')mHr+=mb2.hours.length;
+        if(mb2.payStatus==='done')mPaid+=Number(mb2.fee)||0;
+        else mPending+=Number(mb2.fee)||0;
       }
       h+='<tr style="cursor:pointer" onclick="App.setStatMonth('+mi+')" title="'+months[mi]+' 월간 통계 보기">';
       h+='<td class="lnk">'+months[mi]+'</td>';
       h+='<td class="num">'+mBks.length+'건</td>';
+      h+='<td class="num">'+(mPpl?mPpl+'명':'—')+'</td>';
+      h+='<td class="num">'+(mHr?mHr+'h':'—')+'</td>';
       h+='<td class="num">'+U.fmtW(mFee)+'</td>';
       h+='<td class="num" style="color:#1b5e20">'+U.fmtW(mPaid)+'</td>';
       h+='<td class="num" style="color:#e65100">'+U.fmtW(mPending)+'</td>';
       h+='</tr>';
     }
-    if(!hasData)h+='<tr><td colspan="5" style="color:#ccc;padding:8px">데이터 없음</td></tr>';
+    if(!hasData)h+='<tr><td colspan="7" style="color:#ccc;padding:8px">데이터 없음</td></tr>';
     h+='</tbody></table></div>';
     // 공간별 연간 집계
     var sm={};
@@ -1548,6 +1654,7 @@ var App=(function(){
     var pay=payF?payF.value:'all';
     var space=spaceF?spaceF.value:'all';
     var title=titleF?titleF.value.trim().toLowerCase():'';
+    statFilterState={pay:pay,space:space,title:title};
     var filtered=currentStatList.filter(function(b){
       if(pay!=='all'&&b.payStatus!==pay)return false;
       if(space!=='all'&&b.spaceId!==space)return false;
@@ -1564,6 +1671,7 @@ var App=(function(){
     if(payF)payF.value='all';
     if(spaceF)spaceF.value='all';
     if(titleF)titleF.value='';
+    statFilterState={pay:'all',space:'all',title:''};
     renderStatList(currentStatList,'all');
   }
 
@@ -1770,6 +1878,7 @@ var App=(function(){
     setStatMonth:setStatMonth,
     togglePayStat:togglePayStat,
     togglePayDetail:togglePayDetail,
+    printQuote:printQuote,
     pinCancel:pinCancel,
     toggleBulkMode:toggleBulkMode,
     toggleBulkSelect:toggleBulkSelect,
