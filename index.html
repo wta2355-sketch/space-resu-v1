@@ -1056,10 +1056,13 @@ var App=(function(){
 
     document.getElementById('mA').innerHTML=isEdit
       ? '<button class="btn btn-d" onclick="App.deleteBooking(\''+editId+'\')">🗑 삭제</button>'
+       +'<button class="btn" onclick="App.printQuote(\''+editId+'\')">🧾 견적서</button>'
        +'<div style="flex:1"></div>'
        +'<button class="btn" onclick="App.closeModal()">취소</button>'
        +'<button class="btn btn-p" onclick="App.saveBooking(\''+editId+'\')">✓ 저장</button>'
-      : '<button class="btn" onclick="App.closeModal()">취소</button>'
+      : '<button class="btn" onclick="App.printQuoteDraft()">🧾 견적서 미리보기</button>'
+       +'<div style="flex:1"></div>'
+       +'<button class="btn" onclick="App.closeModal()">취소</button>'
        +'<button class="btn btn-p" onclick="App.saveBooking(null)">✓ 저장</button>';
 
     showModal();
@@ -1201,8 +1204,42 @@ var App=(function(){
     showModal();
   }
 
+  function printQuoteDraft(){
+    try{
+      var sel=document.getElementById('fS');if(!sel){alert('공간을 선택하세요');return;}
+      var sid=sel.value,s=U.sp(sid);if(!s){alert('공간을 선택하세요');return;}
+      var title=U.trim(document.getElementById('fT').value)||'(예약명 미입력)';
+      var app=U.trim(document.getElementById('fApp').value);
+      var con=U.trim(document.getElementById('fCon').value);
+      var ppl=U.trim(document.getElementById('fPpl').value);
+      var memo=U.trim(document.getElementById('fMemo').value);
+      var discRate=U.safeFloat(document.getElementById('fDisc').value,0);
+      if(discRate<0)discRate=0;if(discRate>100)discRate=100;
+      var dates=state.form.selDates.slice().sort();
+      var hours=s.unit==='day'?[0]:state.form.selHours.slice().sort(function(a,b){return a-b;});
+      if(!dates.length){alert('날짜를 1개 이상 선택하세요');return;}
+      if(!hours.length){alert('사용 시간을 1개 이상 선택하세요');return;}
+      var customFee=0;
+      if(s.custom){
+        customFee=U.safeInt(document.getElementById('fCustomFee').value,0);
+      }
+      var base=calcBaseFee(sid,dates[0],hours,customFee);
+      var fee=applyDiscount(base,discRate);
+      var draft={
+        id:'draft',date:dates[0],spaceId:sid,hours:hours,title:title,
+        applicant:app,contact:con,people:ppl,memo:memo,
+        baseFee:base,fee:fee,discountRate:discRate
+      };
+      renderQuoteWindow(draft,true);
+    }catch(e){alert('견적서 생성 오류: '+e.message);}
+  }
+
   function printQuote(id){
     var b=findById(id);if(!b){alert('예약을 찾을 수 없습니다');return;}
+    renderQuoteWindow(b,false);
+  }
+
+  function renderQuoteWindow(b,isDraft){
     var s=U.sp(b.spaceId);if(!s){alert('알 수 없는 공간');return;}
     var d=U.parseD(b.date);if(!d){alert('잘못된 날짜');return;}
     var mh=Math.min.apply(null,b.hours),xh=Math.max.apply(null,b.hours);
@@ -1213,7 +1250,7 @@ var App=(function(){
     var discAmt=base-fee;
     var today=new Date();
     var todayStr=today.getFullYear()+'.'+U.p2(today.getMonth()+1)+'.'+U.p2(today.getDate());
-    var quoteNo='Q'+b.date.replace(/-/g,'')+'-'+b.id.slice(-4).toUpperCase();
+    var quoteNo=isDraft?'DRAFT-'+todayStr.replace(/\./g,''):'Q'+b.date.replace(/-/g,'')+'-'+(b.id||'TEMP').slice(-4).toUpperCase();
 
     var w=window.open('','_blank');
     if(!w){alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');return;}
@@ -1224,6 +1261,7 @@ var App=(function(){
       +'.q-header{text-align:center;margin-bottom:30px;border-bottom:3px solid #1a1a1a;padding-bottom:16px}'
       +'.q-title{font-size:26px;font-weight:700;letter-spacing:4px}'
       +'.q-sub{font-size:12px;color:#888;margin-top:6px}'
+      +'.q-draft-badge{display:inline-block;background:#fff3e0;color:#e65100;font-size:11px;font-weight:700;padding:4px 12px;border-radius:12px;margin-top:8px}'
       +'.q-meta{display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:24px}'
       +'.q-section{margin-bottom:20px}'
       +'.q-section-title{font-size:13px;font-weight:700;color:#378ADD;margin-bottom:8px;border-left:3px solid #378ADD;padding-left:8px}'
@@ -1236,7 +1274,9 @@ var App=(function(){
       +'.q-print-btn{display:block;margin:24px auto;padding:10px 24px;background:#378ADD;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer}'
       +'@media print{.q-print-btn{display:none}}'
       +'</style></head><body>'
-      +'<div class="q-header"><div class="q-title">견 적 서</div><div class="q-sub">QUOTATION</div></div>'
+      +'<div class="q-header"><div class="q-title">견 적 서</div><div class="q-sub">QUOTATION</div>'
+      +(isDraft?'<div class="q-draft-badge">⚠ 미저장 상태 - 임시 미리보기</div>':'')
+      +'</div>'
       +'<div class="q-meta"><span>견적번호: '+quoteNo+'</span><span>발행일: '+todayStr+'</span></div>'
       +'<div class="q-section"><div class="q-section-title">대관 정보</div>'
       +'<table>'
@@ -1751,13 +1791,31 @@ var App=(function(){
 
   function togglePayStat(id){
     togglePay(id);
-    // 통계 뷰 목록만 갱신
+    // 통계 뷰 목록만 갱신 (검색/필터 상태 유지)
     setTimeout(function(){
       var prefix=state.statDate.y+'-'+U.p2(state.statDate.m+1)+'-';
       var mb=state.bookings.filter(function(b){return b.date.indexOf(prefix)===0;});
       var srt=mb.slice().sort(function(a,b){if(a.date<b.date)return -1;if(a.date>b.date)return 1;return Math.min.apply(null,a.hours)-Math.min.apply(null,b.hours);});
-      renderStatList(srt,currentStatFilter);
+      currentStatList=srt;
+      // 기존 검색/필터 상태(statFilterState)를 그대로 재적용
+      if(statFilterState.pay!=='all'||statFilterState.space!=='all'||statFilterState.title){
+        applyStatFiltersSilent();
+      }else{
+        renderStatList(srt,'all');
+      }
     },200);
+  }
+
+  // 필터 드롭다운 값을 건드리지 않고 statFilterState 기준으로만 재적용
+  function applyStatFiltersSilent(){
+    var pay=statFilterState.pay,space=statFilterState.space,title=statFilterState.title;
+    var filtered=currentStatList.filter(function(b){
+      if(pay!=='all'&&b.payStatus!==pay)return false;
+      if(space!=='all'&&b.spaceId!==space)return false;
+      if(title&&b.title.toLowerCase().indexOf(title)<0)return false;
+      return true;
+    });
+    renderStatList(filtered,'__filtered__');
   }
 
   function toggleBulkMode(){
@@ -1953,6 +2011,7 @@ var App=(function(){
     togglePayStat:togglePayStat,
     togglePayDetail:togglePayDetail,
     printQuote:printQuote,
+    printQuoteDraft:printQuoteDraft,
     pinCancel:pinCancel,
     toggleBulkMode:toggleBulkMode,
     toggleBulkSelect:toggleBulkSelect,
